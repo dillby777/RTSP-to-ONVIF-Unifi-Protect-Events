@@ -32,9 +32,9 @@ Create a directory locally where you will keep your compose and config files.
 1. Create a directory and change into it
   - `mkdir rtsp-to-onvif` and `cd rtsp-to-onvif`
 2. Download the compose.yaml file
-  - `wget https://github.com/dlo747/RTSP-to-ONVIF-Unifi-Protect/refs/heads/release/compose.yaml`
+  - `wget https://raw.githubusercontent.com/dlo747/RTSP-to-ONVIF-Unifi-Protect/refs/heads/main/compose.yaml`
 3. Download the config.example.yaml and clone it
-  - `wget https://github.com/dlo747/RTSP-to-ONVIF-Unifi-Protect/refs/heads/release/config.example.yaml`
+  - `wget https://raw.githubusercontent.com/dlo747/RTSP-to-ONVIF-Unifi-Protect/refs/heads/main/config.example.yaml`
   - `cp config.example.yaml config.yaml`
 4. Edit and configure your cameras
   - `nano config.yaml`
