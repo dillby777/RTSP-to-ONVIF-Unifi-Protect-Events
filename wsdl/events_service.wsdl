@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions
+  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+  xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:tev="http://www.onvif.org/ver10/events/wsdl"
+  targetNamespace="http://www.onvif.org/ver10/events/wsdl">
+
+  <wsdl:types>
+    <xs:schema
+      targetNamespace="http://www.onvif.org/ver10/events/wsdl"
+      elementFormDefault="qualified">
+      <xs:element name="GetEventProperties" type="xs:anyType"/>
+      <xs:element name="GetEventPropertiesResponse" type="xs:anyType"/>
+      <xs:element name="GetServiceCapabilities" type="xs:anyType"/>
+      <xs:element name="GetServiceCapabilitiesResponse" type="xs:anyType"/>
+      <xs:element name="CreatePullPointSubscription" type="xs:anyType"/>
+      <xs:element name="CreatePullPointSubscriptionResponse" type="xs:anyType"/>
+      <xs:element name="PullMessages" type="xs:anyType"/>
+      <xs:element name="PullMessagesResponse" type="xs:anyType"/>
+      <xs:element name="Renew" type="xs:anyType"/>
+      <xs:element name="RenewResponse" type="xs:anyType"/>
+      <xs:element name="Unsubscribe" type="xs:anyType"/>
+      <xs:element name="UnsubscribeResponse" type="xs:anyType"/>
+    </xs:schema>
+  </wsdl:types>
+
+  <wsdl:message name="GetEventPropertiesRequest">
+    <wsdl:part name="parameters" element="tev:GetEventProperties"/>
+  </wsdl:message>
+  <wsdl:message name="GetEventPropertiesResponse">
+    <wsdl:part name="parameters" element="tev:GetEventPropertiesResponse"/>
+  </wsdl:message>
+  <wsdl:message name="GetServiceCapabilitiesRequest">
+    <wsdl:part name="parameters" element="tev:GetServiceCapabilities"/>
+  </wsdl:message>
+  <wsdl:message name="GetServiceCapabilitiesResponse">
+    <wsdl:part name="parameters" element="tev:GetServiceCapabilitiesResponse"/>
+  </wsdl:message>
+  <wsdl:message name="CreatePullPointSubscriptionRequest">
+    <wsdl:part name="parameters" element="tev:CreatePullPointSubscription"/>
+  </wsdl:message>
+  <wsdl:message name="CreatePullPointSubscriptionResponse">
+    <wsdl:part name="parameters" element="tev:CreatePullPointSubscriptionResponse"/>
+  </wsdl:message>
+  <wsdl:message name="PullMessagesRequest">
+    <wsdl:part name="parameters" element="tev:PullMessages"/>
+  </wsdl:message>
+  <wsdl:message name="PullMessagesResponse">
+    <wsdl:part name="parameters" element="tev:PullMessagesResponse"/>
+  </wsdl:message>
+  <wsdl:message name="RenewRequest">
+    <wsdl:part name="parameters" element="tev:Renew"/>
+  </wsdl:message>
+  <wsdl:message name="RenewResponse">
+    <wsdl:part name="parameters" element="tev:RenewResponse"/>
+  </wsdl:message>
+  <wsdl:message name="UnsubscribeRequest">
+    <wsdl:part name="parameters" element="tev:Unsubscribe"/>
+  </wsdl:message>
+  <wsdl:message name="UnsubscribeResponse">
+    <wsdl:part name="parameters" element="tev:UnsubscribeResponse"/>
+  </wsdl:message>
+
+  <wsdl:portType name="EventPortType">
+    <wsdl:operation name="GetEventProperties">
+      <wsdl:input message="tev:GetEventPropertiesRequest"/>
+      <wsdl:output message="tev:GetEventPropertiesResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="GetServiceCapabilities">
+      <wsdl:input message="tev:GetServiceCapabilitiesRequest"/>
+      <wsdl:output message="tev:GetServiceCapabilitiesResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="CreatePullPointSubscription">
+      <wsdl:input message="tev:CreatePullPointSubscriptionRequest"/>
+      <wsdl:output message="tev:CreatePullPointSubscriptionResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="PullMessages">
+      <wsdl:input message="tev:PullMessagesRequest"/>
+      <wsdl:output message="tev:PullMessagesResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="Renew">
+      <wsdl:input message="tev:RenewRequest"/>
+      <wsdl:output message="tev:RenewResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="Unsubscribe">
+      <wsdl:input message="tev:UnsubscribeRequest"/>
+      <wsdl:output message="tev:UnsubscribeResponse"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="EventBinding" type="tev:EventPortType">
+    <soap12:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="GetEventProperties">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/events/wsdl/GetEventProperties"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetServiceCapabilities">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/events/wsdl/GetServiceCapabilities"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CreatePullPointSubscription">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/events/wsdl/CreatePullPointSubscription"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PullMessages">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/events/wsdl/PullMessages"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Renew">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/events/wsdl/Renew"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Unsubscribe">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/events/wsdl/Unsubscribe"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="EventService">
+    <wsdl:port name="Events" binding="tev:EventBinding">
+      <soap12:address location="http://localhost:8000/onvif/events_service"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>
