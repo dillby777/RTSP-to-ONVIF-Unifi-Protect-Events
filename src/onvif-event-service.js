@@ -196,6 +196,7 @@ module.exports = class OnvifEventService {
 
     handleUpstreamEvent(event) {
         if (!this.matchesSourceFilter(event)) {
+            this.logger.info(`EVENTS: ${this.config.name} dropped upstream event due to source filter '${this.config.events.source}' (topic='${event.topic || ''}' source='${event.sourceText || ''}')`);
             return;
         }
 
@@ -221,7 +222,7 @@ module.exports = class OnvifEventService {
         }
 
         for (let item of asArray(event.sourceItems)) {
-            if (item.value === filter || `${item.name}=${item.value}` === filter) {
+            if ((item.value || '').includes(filter) || `${item.name}=${item.value}`.includes(filter)) {
                 return true;
             }
         }

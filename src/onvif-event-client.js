@@ -190,6 +190,11 @@ module.exports = class OnvifEventClient extends EventEmitter {
     </tev:PullMessages>`);
             let events = await this.parseNotificationMessages(responseXml);
 
+            if (events.length > 0) {
+                let firstEvent = events[0];
+                this.logger.info(`EVENTS: ${this.config.name} pulled ${events.length} upstream event(s); topic='${firstEvent.topic || ''}' source='${firstEvent.sourceText || ''}' data='${firstEvent.dataText || ''}'`);
+            }
+
             for (let event of events) {
                 this.emit('event', event);
             }
