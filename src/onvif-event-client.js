@@ -262,17 +262,39 @@ ${content}
         let requestXml = this.soapEnvelope(content);
         let endpointUrl = new URL(endpoint);
         let preferredMode = this.preferredAuth === 'basic' ? 'basic' : 'digest';
+        let endpointPath = `${endpointUrl.pathname}${endpointUrl.search}`;
+        let attemptedModes = [];
 
-        if (preferredMode === 'basic') {
-            let basicResponse = await this.requestOnce(endpointUrl, requestXml, {
+        let attemptBasic = async () => {
+            attemptedModes.push('basic');
+            return this.requestOnce(endpointUrl, requestXml, {
                 Authorization: this.basicAuthorizationHeader()
             });
+        };
 
+        let attemptDigest = async (challenge) => {
+            attemptedModes.push('digest');
+            return this.requestOnce(endpointUrl, requestXml, {
+                Authorization: this.digestAuthorizationHeader(challenge, 'POST', endpointPath)
+            });
+        };
+
+        if (preferredMode === 'basic') {
+            let basicResponse = await attemptBasic();
             if (basicResponse.statusCode >= 200 && basicResponse.statusCode < 300) {
                 return basicResponse.body;
             }
 
-            throw new Error(`basic auth request failed with status ${basicResponse.statusCode}`);
+            if (basicResponse.statusCode === 401 && /digest/i.test(basicResponse.headers['www-authenticate'] || '')) {
+                let digestResponse = await attemptDigest(basicResponse.headers['www-authenticate']);
+                if (digestResponse.statusCode >= 200 && digestResponse.statusCode < 300) {
+                    return digestResponse.body;
+                }
+
+                throw new Error(this.buildAuthError(attemptedModes, digestResponse.statusCode, digestResponse.headers));
+            }
+
+            throw new Error(this.buildAuthError(attemptedModes, basicResponse.statusCode, basicResponse.headers));
         }
 
         let initialResponse = await this.requestOnce(endpointUrl, requestXml, {});
@@ -280,30 +302,34 @@ ${content}
             return initialResponse.body;
         }
 
-        if (initialResponse.statusCode === 401) {
-            let challenge = initialResponse.headers['www-authenticate'] || '';
-            if (/digest/i.test(challenge)) {
-                let digestResponse = await this.requestOnce(endpointUrl, requestXml, {
-                    Authorization: this.digestAuthorizationHeader(challenge, 'POST', `${endpointUrl.pathname}${endpointUrl.search}`)
-                });
-
-                if (digestResponse.statusCode >= 200 && digestResponse.statusCode < 300) {
-                    return digestResponse.body;
-                }
-            }
-
-            let fallbackResponse = await this.requestOnce(endpointUrl, requestXml, {
-                Authorization: this.basicAuthorizationHeader()
-            });
-
-            if (fallbackResponse.statusCode >= 200 && fallbackResponse.statusCode < 300) {
-                return fallbackResponse.body;
-            }
-
-            throw new Error(`authentication failed with status ${fallbackResponse.statusCode}`);
+        if (initialResponse.statusCode !== 401) {
+            throw new Error(`request failed with status ${initialResponse.statusCode}`);
         }
 
-        throw new Error(`request failed with status ${initialResponse.statusCode}`);
+        let challenge = initialResponse.headers['www-authenticate'] || '';
+        if (/digest/i.test(challenge)) {
+            let digestResponse = await attemptDigest(challenge);
+            if (digestResponse.statusCode >= 200 && digestResponse.statusCode < 300) {
+                return digestResponse.body;
+            }
+
+            if (digestResponse.statusCode !== 401) {
+                throw new Error(`request failed with status ${digestResponse.statusCode}`);
+            }
+        }
+
+        let basicResponse = await attemptBasic();
+        if (basicResponse.statusCode >= 200 && basicResponse.statusCode < 300) {
+            return basicResponse.body;
+        }
+
+        throw new Error(this.buildAuthError(attemptedModes, basicResponse.statusCode, basicResponse.headers));
+    }
+
+    buildAuthError(attemptedModes, statusCode, headers) {
+        let uniqueModes = [...new Set(attemptedModes)];
+        let challenge = headers && headers['www-authenticate'] ? headers['www-authenticate'] : 'none';
+        return `authentication failed (attempted: ${uniqueModes.join(', ')}, status: ${statusCode}, challenge: ${challenge})`;
     }
 
     basicAuthorizationHeader() {
