@@ -53,8 +53,14 @@ function validateEventsConfig(logger, onvifConfig) {
         failConfig(logger, `${onvifConfig.name}: events.auth must be either 'basic' or 'digest'`);
     }
 
-    if (onvifConfig.events.source !== undefined && typeof onvifConfig.events.source !== 'string') {
-        onvifConfig.events.source = String(onvifConfig.events.source);
+    if (onvifConfig.events.source !== undefined) {
+        if (typeof onvifConfig.events.source !== 'string') {
+            failConfig(logger, `${onvifConfig.name}: events.source must be a string when set (quote numeric-like values, e.g. "00000")`);
+        }
+
+        if (!onvifConfig.events.source.trim()) {
+            failConfig(logger, `${onvifConfig.name}: events.source cannot be an empty string`);
+        }
     }
 }
 
