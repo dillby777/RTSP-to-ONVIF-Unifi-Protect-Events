@@ -32,9 +32,9 @@ Create a directory locally where you will keep your compose and config files.
 1. Create a directory and change into it
   - `mkdir rtsp-to-onvif` and `cd rtsp-to-onvif`
 2. Download the compose.yaml file
-  - `wget https://github.com/dlo747/RTSP-to-ONVIF-Unifi-Protect/refs/heads/release/compose.yaml`
+  - `wget https://raw.githubusercontent.com/dlo747/RTSP-to-ONVIF-Unifi-Protect/refs/heads/main/compose.yaml`
 3. Download the config.example.yaml and clone it
-  - `wget https://github.com/dlo747/RTSP-to-ONVIF-Unifi-Protect/refs/heads/release/config.example.yaml`
+  - `wget https://raw.githubusercontent.com/dlo747/RTSP-to-ONVIF-Unifi-Protect/refs/heads/main/config.example.yaml`
   - `cp config.example.yaml config.yaml`
 4. Edit and configure your cameras
   - `nano config.yaml`
@@ -55,13 +55,14 @@ Create a directory locally where you will keep your compose and config files.
 > 
 > This file will be overwritten during automatic configuration so comments will be lost.
 > 
-> No username or passwords required here!
+> No username or passwords are required for the RTSP proxy path itself. If you enable ONVIF event relay, the `events` block does require ONVIF credentials for the real camera.
 > Sample YAML is for a Dahua camera. Might have to change your rtsp/snapshot streams
 
 
 ```yaml
 onvif:
   - name: Driveway                              # A user define named that will show up in the consumer device. Use letters only, no spaces or special characters
+    description: Driveway                       # Optional display model/description shown by some ONVIF clients
     dev: enp3s0 #eth0                             # Network interface to add virtual IP's too. use ip addr to find your name
     target:
       hostname: 192.168.1.73                       # Your cameras IPv4 address
@@ -80,9 +81,19 @@ onvif:
       server: 8081
       rtsp: 8554
       snapshot: 8080
+    events:                                             # Optional: relay ONVIF events from the real camera onto the virtual camera
+      enabled: true
+      port: 80
+      path: /onvif/device_service
+      username: admin
+      password: camera-password
+      auth: digest                                      # Optional: digest first, with basic fallback at runtime
+      source: 00100                                     # Optional: only relay events whose Source items contain this value
     #mac - automatically added here and IP comes from DHCP- Add your own if you know what you doing
     #uuid - ONVIF ID - automatically added here. If you change it Protect will think its a different camera
 ```
+
+If you configure two virtual cameras against the same `target.hostname`, they will share one upstream ONVIF events client connection while still exposing separate local ONVIF event services to UniFi Protect.
 
 ## Unifi Protect
 Tested on Unifi Protect 7.0.107

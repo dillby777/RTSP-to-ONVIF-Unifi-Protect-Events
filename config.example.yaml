@@ -15,7 +15,16 @@ onvif:
       framerate: 30                                 # The Video Framerate/FPS
       bitrate: 16384                                # The Video Bitrate in kb/s
       quality: 4                                    # Quality, leave this as 4 for the high quality stream.
-    ports:                                           # Virtual server ports. No need to change these unles you run into port already in use problems
+    ports:                                          # Virtual server ports. No need to change these unles you run into port already in use problems
       server: 8081
       rtsp: 8554
       snapshot: 8080
+    mac: 1A:11:B0:BF:B4:1A                          # Private MAC address to use for the virtual camera.
+    events:                                         # Optional: relay ONVIF events from the real camera (e.g. motion) to whatever pulls events from this virtual camera
+      enabled: true                                 # Set to false or omit this whole block to disable the events service entirely
+      port: 80                                      # ONVIF port on the REAL camera (its device_service port, not this proxy's)
+      path: /onvif/device_service                   # ONVIF device_service path on the REAL camera, used to discover its Events service address
+      username: admin                               # ONVIF username configured on the REAL camera
+      password: camera-password                     # ONVIF password configured on the REAL camera
+      auth: basic                                   # Optional: authentication type, either 'basic' or 'digest'. Default is 'digest'
+      source: 00100                                 # Optional: only relay events whose Source item matches this value

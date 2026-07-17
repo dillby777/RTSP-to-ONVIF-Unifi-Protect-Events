@@ -7,6 +7,7 @@ const fs = require('fs');
 const logger = require('simple-node-logger');
 
 const { getIp4FromMac } = require('./net-tools')
+const OnvifEventService = require('./onvif-event-service');
 
 Date.prototype.stdTimezoneOffset = function () {
     let jan = new Date(this.getFullYear(), 0, 1);
@@ -19,13 +20,24 @@ Date.prototype.isDstObserved = function () {
 }
 
 module.exports = class OnvifServer {
-    constructor(logger, config) {
+    constructor(logger, config, eventClientPool) {
         this.config = config;
         this.logger = logger;
+        this.eventClientPool = eventClientPool;
 
         this.config.hostname = getIp4FromMac(logger, this.config.mac);
         if (!this.config.hostname)
             return -1;
+
+        this.eventService = null;
+        this.eventClient = null;
+        if (this.config.events && this.config.events.enabled) {
+            this.eventService = new OnvifEventService(logger, this.config);
+            if (this.eventClientPool) {
+                this.eventClient = this.eventClientPool.acquire(this.config);
+                this.eventService.attachClient(this.eventClient);
+            }
+        }
 
         this.videoSource = {
             attributes: {
@@ -356,7 +368,7 @@ module.exports = class OnvifServer {
 
     soapEnvelope(content) {
         return `<?xml version="1.0" encoding="UTF-8"?>
-<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:tds="http://www.onvif.org/ver10/device/wsdl" xmlns:trt="http://www.onvif.org/ver10/media/wsdl" xmlns:tt="http://www.onvif.org/ver10/schema">
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:tds="http://www.onvif.org/ver10/device/wsdl" xmlns:trt="http://www.onvif.org/ver10/media/wsdl" xmlns:tev="http://www.onvif.org/ver10/events/wsdl" xmlns:tt="http://www.onvif.org/ver10/schema" xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2" xmlns:wsa5="http://www.w3.org/2005/08/addressing">
   <s:Body>
 ${content}
   </s:Body>
@@ -409,7 +421,17 @@ ${content}
     }
 
     getServicesResponse() {
-        return `    <tds:GetServicesResponse>
+                let eventServiceXml = '';
+                if (this.eventService && this.eventService.isEnabled()) {
+                        eventServiceXml = `
+            <tds:Service>
+                <tds:Namespace>http://www.onvif.org/ver10/events/wsdl</tds:Namespace>
+                <tds:XAddr>http://${this.config.hostname}:${this.config.ports.server}/onvif/events_service</tds:XAddr>
+                <tds:Version><tt:Major>2</tt:Major><tt:Minor>5</tt:Minor></tds:Version>
+            </tds:Service>`;
+                }
+
+                return `    <tds:GetServicesResponse>
       <tds:Service>
         <tds:Namespace>http://www.onvif.org/ver10/device/wsdl</tds:Namespace>
         <tds:XAddr>http://${this.config.hostname}:${this.config.ports.server}/onvif/device_service</tds:XAddr>
@@ -419,12 +441,23 @@ ${content}
         <tds:Namespace>http://www.onvif.org/ver10/media/wsdl</tds:Namespace>
         <tds:XAddr>http://${this.config.hostname}:${this.config.ports.server}/onvif/media_service</tds:XAddr>
         <tds:Version><tt:Major>2</tt:Major><tt:Minor>5</tt:Minor></tds:Version>
-      </tds:Service>
+            </tds:Service>${eventServiceXml}
     </tds:GetServicesResponse>`;
     }
 
     getCapabilitiesResponse() {
-        return `    <tds:GetCapabilitiesResponse>
+                let eventsCapabilitiesXml = '';
+                if (this.eventService && this.eventService.isEnabled()) {
+                        eventsCapabilitiesXml = `
+                <tt:Events>
+                    <tt:XAddr>http://${this.config.hostname}:${this.config.ports.server}/onvif/events_service</tt:XAddr>
+                    <tt:WSPullPointSupport>true</tt:WSPullPointSupport>
+                    <tt:WSSubscriptionPolicySupport>false</tt:WSSubscriptionPolicySupport>
+                    <tt:WSPausableSubscriptionManagerInterfaceSupport>false</tt:WSPausableSubscriptionManagerInterfaceSupport>
+                </tt:Events>`;
+                }
+
+                return `    <tds:GetCapabilitiesResponse>
       <tds:Capabilities>
         <tt:Device>
           <tt:XAddr>http://${this.config.hostname}:${this.config.ports.server}/onvif/device_service</tt:XAddr>
@@ -444,7 +477,7 @@ ${content}
         <tt:Media>
           <tt:XAddr>http://${this.config.hostname}:${this.config.ports.server}/onvif/media_service</tt:XAddr>
           <tt:StreamingCapabilities><tt:RTPMulticast>false</tt:RTPMulticast><tt:RTP_TCP>true</tt:RTP_TCP><tt:RTP_RTSP_TCP>true</tt:RTP_RTSP_TCP></tt:StreamingCapabilities>
-        </tt:Media>
+                </tt:Media>${eventsCapabilitiesXml}
       </tds:Capabilities>
     </tds:GetCapabilitiesResponse>`;
     }
@@ -537,7 +570,7 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
     </trt:GetStreamUriResponse>`;
     }
 
-    handleOnvifRequest(request, response) {
+    async handleOnvifRequest(request, response, requestPath) {
         this.readRequestBody(request, (body) => {
             let action = this.getRequestAction(body);
             let profileToken = this.getRequestValue(body, 'ProfileToken');
@@ -548,39 +581,56 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
                 console.debug(`SERVER: Action ${action}`);
             }
 
-            switch (action) {
-                case 'GetSystemDateAndTime':
-                    return this.sendSoapResponse(response, this.getSystemDateAndTimeResponse());
-                case 'GetServices':
-                    return this.sendSoapResponse(response, this.getServicesResponse());
-                case 'GetCapabilities':
-                    return this.sendSoapResponse(response, this.getCapabilitiesResponse());
-                case 'GetDeviceInformation':
-                    return this.sendSoapResponse(response, this.getDeviceInformationResponse());
-                case 'GetProfiles':
-                    return this.sendSoapResponse(response, this.getProfilesResponse());
-                case 'GetVideoSources':
-                    return this.sendSoapResponse(response, this.getVideoSourcesResponse());
-                case 'GetSnapshotUri':
-                    return this.sendSoapResponse(response, this.getSnapshotUriResponse(profileToken));
-                case 'GetStreamUri':
-                    return this.sendSoapResponse(response, this.getStreamUriResponse(profileToken));
-                default:
-                    return this.sendSoapFault(response, `Unsupported ONVIF action ${action || '(none)'}`);
+            try {
+                if (this.eventService && this.eventService.isEventsPath(requestPath)) {
+                    let eventResponse = this.eventService.handleRequest(action, requestPath, body);
+                    if (eventResponse && typeof eventResponse.then === 'function') {
+                        return eventResponse.then((xml) => this.sendSoapResponse(response, xml)).catch((error) => this.sendSoapFault(response, error.message));
+                    }
+
+                    return this.sendSoapResponse(response, eventResponse);
+                }
+
+                switch (action) {
+                    case 'GetSystemDateAndTime':
+                        return this.sendSoapResponse(response, this.getSystemDateAndTimeResponse());
+                    case 'GetServices':
+                        return this.sendSoapResponse(response, this.getServicesResponse());
+                    case 'GetCapabilities':
+                        return this.sendSoapResponse(response, this.getCapabilitiesResponse());
+                    case 'GetDeviceInformation':
+                        return this.sendSoapResponse(response, this.getDeviceInformationResponse());
+                    case 'GetProfiles':
+                        return this.sendSoapResponse(response, this.getProfilesResponse());
+                    case 'GetVideoSources':
+                        return this.sendSoapResponse(response, this.getVideoSourcesResponse());
+                    case 'GetSnapshotUri':
+                        return this.sendSoapResponse(response, this.getSnapshotUriResponse(profileToken));
+                    case 'GetStreamUri':
+                        return this.sendSoapResponse(response, this.getStreamUriResponse(profileToken));
+                    default:
+                        return this.sendSoapFault(response, `Unsupported ONVIF action ${action || '(none)'}`);
+                }
+            } catch (error) {
+                return this.sendSoapFault(response, error.message);
             }
         });
     }
 
     listen(request, response) {
         let action = url.parse(request.url, true).pathname;
-        if ((action == '/onvif/device_service' || action == '/onvif/media_service') && request.method == 'POST') {
-            this.handleOnvifRequest(request, response);
+        if ((action == '/onvif/device_service' || action == '/onvif/media_service' || (this.eventService && this.eventService.isEventsPath(action))) && request.method == 'POST') {
+            this.handleOnvifRequest(request, response, action);
         } else if (action == '/onvif/device_service' && request.method == 'GET') {
             let xml = fs.readFileSync('./wsdl/device_service.wsdl', 'utf8');
             response.writeHead(200, { 'Content-Type': 'text/xml; charset=utf-8' });
             response.end(xml);
         } else if (action == '/onvif/media_service' && request.method == 'GET') {
             let xml = fs.readFileSync('./wsdl/media_service.wsdl', 'utf8');
+            response.writeHead(200, { 'Content-Type': 'text/xml; charset=utf-8' });
+            response.end(xml);
+        } else if (action == '/onvif/events_service' && request.method == 'GET' && this.eventService) {
+            let xml = fs.readFileSync('./wsdl/events_service.wsdl', 'utf8');
             response.writeHead(200, { 'Content-Type': 'text/xml; charset=utf-8' });
             response.end(xml);
         } else if (action == '/snapshot.png') {
@@ -678,5 +728,16 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
 
     getHostname() {
         return this.config.hostname;
+    }
+
+    close() {
+        if (this.eventService) {
+            this.eventService.close();
+        }
+
+        if (this.eventClientPool && this.eventClient) {
+            this.eventClientPool.release(this.config);
+            this.eventClient = null;
+        }
     }
 };

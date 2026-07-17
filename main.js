@@ -3,6 +3,7 @@ const argparse = require('argparse');
 const logger = require('simple-node-logger').createSimpleLogger();
 
 const OnvifServer = require('./src/onvif-server');
+const OnvifEventClientPool = require('./src/onvif-event-client-pool');
 const { readAndCheckConfig } = require('./src/config-tools');
 
 
@@ -25,13 +26,16 @@ if (args) {
     }
 
     let config = readAndCheckConfig(logger, args.config)
+    let eventClientPool = new OnvifEventClientPool(logger);
 
     let proxies = {};
+    let servers = [];
     for (let onvifConfig of config.onvif) {
 
-        let server = new OnvifServer(logger, onvifConfig);
+        let server = new OnvifServer(logger, onvifConfig, eventClientPool);
 
         if (server.getHostname()) {
+            servers.push(server);
 
             logger.info('');
             server.startHttpServer();
@@ -51,6 +55,17 @@ if (args) {
             return -1;
         }
     }
+
+    let shutdown = () => {
+        for (let server of servers) {
+            server.close();
+        }
+
+        eventClientPool.closeAll();
+    };
+
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
 
     for (let destinationAddress in proxies) {
         for (let sourcePort in proxies[destinationAddress]) {
