@@ -86,6 +86,11 @@ module.exports = class OnvifEventService {
             <tns1:Motion wstop:topic="true"/>
           </tns1:CellMotionDetector>
         </tns1:VideoSource>
+                <tns1:RuleEngine>
+                    <tns1:CellMotionDetector>
+                        <tns1:Motion wstop:topic="true"/>
+                    </tns1:CellMotionDetector>
+                </tns1:RuleEngine>
       </tev:TopicSet>
       <tev:TopicExpressionDialect>http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet</tev:TopicExpressionDialect>
       <tev:MessageContentFilterDialect>http://www.onvif.org/ver10/tev/messageContentFilter/ItemFilter</tev:MessageContentFilterDialect>
@@ -103,11 +108,12 @@ module.exports = class OnvifEventService {
     createPullPointSubscriptionResponse(body) {
         let timeout = this.parseDuration(this.getRequestValue(body, 'InitialTerminationTime') || this.getRequestValue(body, 'TerminationTime'), 300000);
         let subscription = this.createSubscription(timeout);
+                this.logger.info(`EVENTS: ${this.config.name} created local pull-point subscription ${subscription.id}`);
 
         return `    <tev:CreatePullPointSubscriptionResponse>
-      <tev:SubscriptionReference>
+            <wsnt:SubscriptionReference>
         <wsa5:Address>${this.getSubscriptionAddress(subscription.id)}</wsa5:Address>
-      </tev:SubscriptionReference>
+            </wsnt:SubscriptionReference>
       <wsnt:CurrentTime>${new Date().toISOString()}</wsnt:CurrentTime>
       <wsnt:TerminationTime>${subscription.terminationTime}</wsnt:TerminationTime>
     </tev:CreatePullPointSubscriptionResponse>`;
@@ -117,6 +123,8 @@ module.exports = class OnvifEventService {
         let subscription = this.getSubscriptionFromPath(requestPath);
         let timeout = this.parseDuration(this.getRequestValue(body, 'Timeout'), 0);
         let messageLimit = this.parseInteger(this.getRequestValue(body, 'MessageLimit'), 10);
+
+        this.logger.info(`EVENTS: ${this.config.name} local pull request on ${requestPath} (queued=${subscription.queue.length}, timeoutMs=${timeout}, limit=${messageLimit})`);
 
         return new Promise((resolve) => {
             if (!subscription.queue.length && timeout > 0) {
@@ -144,6 +152,7 @@ module.exports = class OnvifEventService {
         let subscription = this.getSubscriptionFromPath(requestPath);
         let timeout = this.parseDuration(this.getRequestValue(body, 'TerminationTime'), 300000);
         subscription.terminationTime = new Date(Date.now() + timeout).toISOString();
+                this.logger.debug(`EVENTS: ${this.config.name} renewed local subscription ${subscription.id} for ${timeout}ms`);
 
         return `    <wsnt:RenewResponse>
       <wsnt:CurrentTime>${new Date().toISOString()}</wsnt:CurrentTime>
@@ -153,6 +162,7 @@ module.exports = class OnvifEventService {
 
     unsubscribeResponse(requestPath) {
         let subscription = this.getSubscriptionFromPath(requestPath);
+        this.logger.info(`EVENTS: ${this.config.name} unsubscribed local pull-point ${subscription.id}`);
         this.deleteSubscription(subscription.id);
         return `    <wsnt:UnsubscribeResponse/>`;
     }
@@ -200,6 +210,10 @@ module.exports = class OnvifEventService {
             return;
         }
 
+        if (this.subscriptions.size === 0) {
+            this.logger.info(`EVENTS: ${this.config.name} received upstream event but no local ONVIF subscriptions are active yet`);
+        }
+
         for (let subscription of this.subscriptions.values()) {
             subscription.queue.push(event);
             if (subscription.pendingPull) {
@@ -239,8 +253,9 @@ ${events.map((event) => this.notificationMessageXml(event)).join('\n')}
     }
 
     notificationMessageXml(event) {
+                let topic = this.xmlEscape(event.topic || 'tns1:VideoSource/CellMotionDetector/Motion');
         return `      <wsnt:NotificationMessage>
-        <wsnt:Topic Dialect="http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet">${this.xmlEscape(event.topic || 'tns1:VideoSource/CellMotionDetector/Motion')}</wsnt:Topic>
+                <wsnt:Topic xmlns:tns1="http://www.onvif.org/ver10/topics" Dialect="http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet">${topic}</wsnt:Topic>
         <wsnt:Message>
           <tt:Message UtcTime="${this.xmlEscape(event.utcTime || new Date().toISOString())}" PropertyOperation="${this.xmlEscape(event.propertyOperation || 'Changed')}">
             <tt:Source>
