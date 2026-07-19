@@ -63,6 +63,8 @@ module.exports = class OnvifEventService {
                 return this.getEventPropertiesResponse();
             case 'GetServiceCapabilities':
                 return this.getServiceCapabilitiesResponse();
+            case 'Subscribe':
+                return this.createSubscribeResponse(body);
             case 'CreatePullPointSubscription':
                 return this.createPullPointSubscriptionResponse(body);
             case 'PullMessages':
@@ -71,7 +73,7 @@ module.exports = class OnvifEventService {
             case 'Renew':
                 return this.renewResponse(requestPath, body);
             case 'Unsubscribe':
-                return this.unsubscribeResponse(requestPath);
+                return this.unsubscribeResponse(requestPath, body);
             default:
                 throw new Error(`Unsupported ONVIF event action ${action || '(none)'}`);
         }
@@ -105,22 +107,42 @@ module.exports = class OnvifEventService {
     </tev:GetServiceCapabilitiesResponse>`;
     }
 
-    createPullPointSubscriptionResponse(body) {
+        createPullPointSubscriptionResponse(body) {
         let timeout = this.parseDuration(this.getRequestValue(body, 'InitialTerminationTime') || this.getRequestValue(body, 'TerminationTime'), 300000);
         let subscription = this.createSubscription(timeout);
                 this.logger.info(`EVENTS: ${this.config.name} created local pull-point subscription ${subscription.id}`);
 
         return `    <tev:CreatePullPointSubscriptionResponse>
-            <wsnt:SubscriptionReference>
-        <wsa5:Address>${this.getSubscriptionAddress(subscription.id)}</wsa5:Address>
-            </wsnt:SubscriptionReference>
+            ${this.subscriptionReferenceXml(subscription.id)}
       <wsnt:CurrentTime>${new Date().toISOString()}</wsnt:CurrentTime>
       <wsnt:TerminationTime>${subscription.terminationTime}</wsnt:TerminationTime>
     </tev:CreatePullPointSubscriptionResponse>`;
     }
 
+        createSubscribeResponse(body) {
+                let timeout = this.parseDuration(this.getRequestValue(body, 'InitialTerminationTime') || this.getRequestValue(body, 'TerminationTime'), 300000);
+                let subscription = this.createSubscription(timeout);
+                this.logger.info(`EVENTS: ${this.config.name} created local WS-Notification subscription ${subscription.id}`);
+
+                return `    <wsnt:SubscribeResponse>
+            ${this.subscriptionReferenceXml(subscription.id)}
+            <wsnt:CurrentTime>${new Date().toISOString()}</wsnt:CurrentTime>
+            <wsnt:TerminationTime>${subscription.terminationTime}</wsnt:TerminationTime>
+        </wsnt:SubscribeResponse>`;
+        }
+
+        subscriptionReferenceXml(subscriptionId) {
+                let subscriptionAddress = this.getSubscriptionAddress(subscriptionId);
+                return `<wsnt:SubscriptionReference>
+                <wsa5:Address>${subscriptionAddress}</wsa5:Address>
+                <wsa5:ReferenceParameters>
+                    <tev:SubscriptionId>${subscriptionId}</tev:SubscriptionId>
+                </wsa5:ReferenceParameters>
+            </wsnt:SubscriptionReference>`;
+        }
+
     pullMessagesResponse(requestPath, body) {
-        let subscription = this.getSubscriptionFromPath(requestPath);
+        let subscription = this.resolveSubscription(requestPath, body);
         let timeout = this.parseDuration(this.getRequestValue(body, 'Timeout'), 0);
         let messageLimit = this.parseInteger(this.getRequestValue(body, 'MessageLimit'), 10);
 
@@ -149,10 +171,10 @@ module.exports = class OnvifEventService {
     }
 
     renewResponse(requestPath, body) {
-        let subscription = this.getSubscriptionFromPath(requestPath);
+        let subscription = this.resolveSubscription(requestPath, body);
         let timeout = this.parseDuration(this.getRequestValue(body, 'TerminationTime'), 300000);
         subscription.terminationTime = new Date(Date.now() + timeout).toISOString();
-                this.logger.debug(`EVENTS: ${this.config.name} renewed local subscription ${subscription.id} for ${timeout}ms`);
+        this.logger.debug(`EVENTS: ${this.config.name} renewed local subscription ${subscription.id} for ${timeout}ms`);
 
         return `    <wsnt:RenewResponse>
       <wsnt:CurrentTime>${new Date().toISOString()}</wsnt:CurrentTime>
@@ -160,8 +182,8 @@ module.exports = class OnvifEventService {
     </wsnt:RenewResponse>`;
     }
 
-    unsubscribeResponse(requestPath) {
-        let subscription = this.getSubscriptionFromPath(requestPath);
+    unsubscribeResponse(requestPath, body) {
+        let subscription = this.resolveSubscription(requestPath, body);
         this.logger.info(`EVENTS: ${this.config.name} unsubscribed local pull-point ${subscription.id}`);
         this.deleteSubscription(subscription.id);
         return `    <wsnt:UnsubscribeResponse/>`;
@@ -306,6 +328,44 @@ ${(event.dataItems || []).map((item) => `              <tt:SimpleItem Name="${th
         }
 
         return subscription;
+    }
+
+    getSubscriptionIdFromBody(body) {
+        let idFromPath = this.getRequestValue(body || '', 'Address');
+        if (idFromPath) {
+            let pathMatch = idFromPath.match(/\/onvif\/events\/subscriptions\/([^/\s<]+)$/);
+            if (pathMatch) {
+                return pathMatch[1];
+            }
+        }
+
+        let idFromReference = this.getRequestValue(body || '', 'SubscriptionId');
+        if (idFromReference) {
+            return idFromReference;
+        }
+
+        return null;
+    }
+
+    resolveSubscription(requestPath, body) {
+        if (/^\/onvif\/events\/subscriptions\//.test(requestPath)) {
+            return this.getSubscriptionFromPath(requestPath);
+        }
+
+        let subscriptionId = this.getSubscriptionIdFromBody(body);
+        if (subscriptionId && this.subscriptions.has(subscriptionId)) {
+            return this.subscriptions.get(subscriptionId);
+        }
+
+        if (this.subscriptions.size === 1) {
+            return this.subscriptions.values().next().value;
+        }
+
+        if (this.subscriptions.size === 0) {
+            throw new Error('No active local ONVIF event subscription');
+        }
+
+        throw new Error('Subscription reference missing or ambiguous in request');
     }
 
     getRequestValue(body, name) {

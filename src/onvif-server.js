@@ -346,12 +346,26 @@ module.exports = class OnvifServer {
             .replace(/'/g, '&apos;');
     }
 
-    getRequestAction(body) {
+    getRequestAction(request, body) {
         let bodyMatch = body.match(/<(?:\w+:)?Body\b[^>]*>([\s\S]*?)<\/(?:\w+:)?Body>/);
-        if (!bodyMatch)
-            return null;
+        if (bodyMatch) {
+            let actionMatch = bodyMatch[1].match(/<(?:(?:\w+):)?([A-Za-z0-9_]+)\b/);
+            if (actionMatch) {
+                return actionMatch[1];
+            }
+        }
 
-        let actionMatch = bodyMatch[1].match(/<(?:(?:\w+):)?([A-Za-z0-9_]+)\b/);
+        let soapAction = request && request.headers ? request.headers.soapaction : null;
+        if (!soapAction) {
+            return null;
+        }
+
+        let normalizedAction = String(soapAction).trim().replace(/^"|"$/g, '');
+        if (!normalizedAction) {
+            return null;
+        }
+
+        let actionMatch = normalizedAction.match(/([A-Za-z0-9_]+)$/);
         return actionMatch ? actionMatch[1] : null;
     }
 
@@ -572,13 +586,18 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
 
     async handleOnvifRequest(request, response, requestPath) {
         this.readRequestBody(request, (body) => {
-            let action = this.getRequestAction(body);
+            let action = this.getRequestAction(request, body);
             let profileToken = this.getRequestValue(body, 'ProfileToken');
+            let soapAction = request.headers.soapaction || '';
 
             if (process.env.DEBUG) {
                 console.debug(`SERVER: Handling POST on ${url.parse(request.url, true).pathname}`);
                 console.debug(`SERVER: ${body}`);
                 console.debug(`SERVER: Action ${action}`);
+            }
+
+            if (this.eventService && this.eventService.isEventsPath(requestPath)) {
+                this.logger.info(`EVENTS: ${this.config.name} request path=${requestPath} action=${action || '(none)'} soapAction=${soapAction || '(none)'}`);
             }
 
             try {
@@ -631,6 +650,8 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
             response.end(xml);
         } else if (action == '/onvif/events_service' && request.method == 'GET' && this.eventService) {
             let xml = fs.readFileSync('./wsdl/events_service.wsdl', 'utf8');
+            let serviceAddress = `http://${this.config.hostname}:${this.config.ports.server}/onvif/events_service`;
+            xml = xml.replace(/<soap12:address location="[^"]*"\/>/, `<soap12:address location="${serviceAddress}"/>`);
             response.writeHead(200, { 'Content-Type': 'text/xml; charset=utf-8' });
             response.end(xml);
         } else if (action == '/snapshot.png') {

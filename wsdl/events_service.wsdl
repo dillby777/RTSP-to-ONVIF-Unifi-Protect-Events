@@ -14,6 +14,8 @@
       <xs:element name="GetEventPropertiesResponse" type="xs:anyType"/>
       <xs:element name="GetServiceCapabilities" type="xs:anyType"/>
       <xs:element name="GetServiceCapabilitiesResponse" type="xs:anyType"/>
+      <xs:element name="Subscribe" type="xs:anyType"/>
+      <xs:element name="SubscribeResponse" type="xs:anyType"/>
       <xs:element name="CreatePullPointSubscription" type="xs:anyType"/>
       <xs:element name="CreatePullPointSubscriptionResponse" type="xs:anyType"/>
       <xs:element name="PullMessages" type="xs:anyType"/>
@@ -36,6 +38,12 @@
   </wsdl:message>
   <wsdl:message name="GetServiceCapabilitiesResponse">
     <wsdl:part name="parameters" element="tev:GetServiceCapabilitiesResponse"/>
+  </wsdl:message>
+  <wsdl:message name="SubscribeRequest">
+    <wsdl:part name="parameters" element="tev:Subscribe"/>
+  </wsdl:message>
+  <wsdl:message name="SubscribeResponse">
+    <wsdl:part name="parameters" element="tev:SubscribeResponse"/>
   </wsdl:message>
   <wsdl:message name="CreatePullPointSubscriptionRequest">
     <wsdl:part name="parameters" element="tev:CreatePullPointSubscription"/>
@@ -71,6 +79,10 @@
       <wsdl:input message="tev:GetServiceCapabilitiesRequest"/>
       <wsdl:output message="tev:GetServiceCapabilitiesResponse"/>
     </wsdl:operation>
+    <wsdl:operation name="Subscribe">
+      <wsdl:input message="tev:SubscribeRequest"/>
+      <wsdl:output message="tev:SubscribeResponse"/>
+    </wsdl:operation>
     <wsdl:operation name="CreatePullPointSubscription">
       <wsdl:input message="tev:CreatePullPointSubscriptionRequest"/>
       <wsdl:output message="tev:CreatePullPointSubscriptionResponse"/>
@@ -98,6 +110,11 @@
     </wsdl:operation>
     <wsdl:operation name="GetServiceCapabilities">
       <soap12:operation soapAction="http://www.onvif.org/ver10/events/wsdl/GetServiceCapabilities"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Subscribe">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/events/wsdl/Subscribe"/>
       <wsdl:input><soap12:body use="literal"/></wsdl:input>
       <wsdl:output><soap12:body use="literal"/></wsdl:output>
     </wsdl:operation>
