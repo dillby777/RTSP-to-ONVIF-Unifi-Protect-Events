@@ -550,10 +550,92 @@ ${content}
       </trt:Profiles>`;
     }
 
+    findProfile(profileToken) {
+        return this.profiles.find((profile) => profile.attributes.token === profileToken) || this.profiles[0];
+    }
+
+    findVideoSourceConfiguration(configurationToken) {
+        for (let profile of this.profiles) {
+            if (profile.VideoSourceConfiguration.attributes.token === configurationToken) {
+                return profile.VideoSourceConfiguration;
+            }
+        }
+
+        return this.profiles[0].VideoSourceConfiguration;
+    }
+
+    findVideoEncoderConfiguration(configurationToken) {
+        for (let profile of this.profiles) {
+            if (profile.VideoEncoderConfiguration.attributes.token === configurationToken) {
+                return profile.VideoEncoderConfiguration;
+            }
+        }
+
+        return this.profiles[0].VideoEncoderConfiguration;
+    }
+
     getProfilesResponse() {
         return `    <trt:GetProfilesResponse>
 ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
     </trt:GetProfilesResponse>`;
+    }
+
+    getProfileResponse(profileToken) {
+        return `    <trt:GetProfileResponse>
+${this.profileXml(this.findProfile(profileToken))}
+    </trt:GetProfileResponse>`;
+    }
+
+    videoSourceConfigurationXml(configuration) {
+        return `      <trt:Configurations token="${this.xmlEscape(configuration.attributes.token)}">
+        <tt:Name>${this.xmlEscape(configuration.Name)}</tt:Name>
+        <tt:UseCount>${configuration.UseCount}</tt:UseCount>
+        <tt:SourceToken>${this.xmlEscape(configuration.SourceToken)}</tt:SourceToken>
+        <tt:Bounds x="0" y="0" width="${configuration.Bounds.attributes.width}" height="${configuration.Bounds.attributes.height}"/>
+      </trt:Configurations>`;
+    }
+
+    getVideoSourceConfigurationsResponse() {
+        return `    <trt:GetVideoSourceConfigurationsResponse>
+${this.profiles.map((profile) => this.videoSourceConfigurationXml(profile.VideoSourceConfiguration)).join('\n')}
+    </trt:GetVideoSourceConfigurationsResponse>`;
+    }
+
+    getVideoSourceConfigurationResponse(configurationToken) {
+        return `    <trt:GetVideoSourceConfigurationResponse>
+${this.videoSourceConfigurationXml(this.findVideoSourceConfiguration(configurationToken))}
+    </trt:GetVideoSourceConfigurationResponse>`;
+    }
+
+    videoEncoderConfigurationXml(configuration) {
+        return `      <trt:Configurations token="${this.xmlEscape(configuration.attributes.token)}">
+        <tt:Name>${this.xmlEscape(configuration.Name)}</tt:Name>
+        <tt:UseCount>${configuration.UseCount}</tt:UseCount>
+        <tt:Encoding>${configuration.Encoding}</tt:Encoding>
+        <tt:Resolution><tt:Width>${configuration.Resolution.Width}</tt:Width><tt:Height>${configuration.Resolution.Height}</tt:Height></tt:Resolution>
+        <tt:Quality>${configuration.Quality}</tt:Quality>
+        <tt:RateControl><tt:FrameRateLimit>${configuration.RateControl.FrameRateLimit}</tt:FrameRateLimit><tt:EncodingInterval>${configuration.RateControl.EncodingInterval}</tt:EncodingInterval><tt:BitrateLimit>${configuration.RateControl.BitrateLimit}</tt:BitrateLimit></tt:RateControl>
+        <tt:H264><tt:GovLength>${configuration.H264.GovLength}</tt:GovLength><tt:H264Profile>${configuration.H264.H264Profile}</tt:H264Profile></tt:H264>
+        <tt:SessionTimeout>${configuration.SessionTimeout}</tt:SessionTimeout>
+      </trt:Configurations>`;
+    }
+
+    getVideoEncoderConfigurationsResponse() {
+        return `    <trt:GetVideoEncoderConfigurationsResponse>
+${this.profiles.map((profile) => this.videoEncoderConfigurationXml(profile.VideoEncoderConfiguration)).join('\n')}
+    </trt:GetVideoEncoderConfigurationsResponse>`;
+    }
+
+    getVideoEncoderConfigurationResponse(configurationToken) {
+        return `    <trt:GetVideoEncoderConfigurationResponse>
+${this.videoEncoderConfigurationXml(this.findVideoEncoderConfiguration(configurationToken))}
+    </trt:GetVideoEncoderConfigurationResponse>`;
+    }
+
+    getMediaServiceCapabilitiesResponse() {
+        return `    <trt:GetServiceCapabilitiesResponse>
+      <trt:Capabilities SnapshotUri="true" Rotation="false" VideoSourceMode="false" OSD="false" EXICompression="false" TemporaryOSDText="false" Mask="false"/>
+    </trt:GetServiceCapabilitiesResponse>`;
     }
 
     getVideoSourcesResponse() {
@@ -677,6 +759,7 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
         this.readRequestBody(request, (body) => {
             let action = this.getRequestAction(request, body);
             let profileToken = this.getRequestValue(body, 'ProfileToken');
+            let configurationToken = this.getRequestValue(body, 'ConfigurationToken');
             let soapAction = request.headers.soapaction || '';
 
             if (process.env.DEBUG) {
@@ -716,12 +799,28 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
                         return this.sendSoapResponse(response, this.getDeviceInformationResponse());
                     case 'GetProfiles':
                         return this.sendSoapResponse(response, this.getProfilesResponse());
+                    case 'GetProfile':
+                        return this.sendSoapResponse(response, this.getProfileResponse(profileToken));
                     case 'GetVideoSources':
                         return this.sendSoapResponse(response, this.getVideoSourcesResponse());
+                    case 'GetVideoSourceConfigurations':
+                        return this.sendSoapResponse(response, this.getVideoSourceConfigurationsResponse());
+                    case 'GetVideoSourceConfiguration':
+                        return this.sendSoapResponse(response, this.getVideoSourceConfigurationResponse(configurationToken));
+                    case 'GetVideoEncoderConfigurations':
+                        return this.sendSoapResponse(response, this.getVideoEncoderConfigurationsResponse());
+                    case 'GetVideoEncoderConfiguration':
+                        return this.sendSoapResponse(response, this.getVideoEncoderConfigurationResponse(configurationToken));
                     case 'GetSnapshotUri':
                         return this.sendSoapResponse(response, this.getSnapshotUriResponse(profileToken));
                     case 'GetStreamUri':
                         return this.sendSoapResponse(response, this.getStreamUriResponse(profileToken));
+                    case 'GetServiceCapabilities':
+                        if (requestPath === '/onvif/media_service') {
+                            return this.sendSoapResponse(response, this.getMediaServiceCapabilitiesResponse());
+                        }
+
+                        return this.sendSoapResponse(response, this.getServiceCapabilitiesResponse());
                     case 'GetDNS':
                         return this.sendSoapResponse(response, this.getDnsResponse());
                     case 'GetNetworkInterfaces':

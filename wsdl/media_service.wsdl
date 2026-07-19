@@ -12,8 +12,20 @@
       elementFormDefault="qualified">
       <xs:element name="GetProfiles" type="xs:anyType"/>
       <xs:element name="GetProfilesResponse" type="xs:anyType"/>
+      <xs:element name="GetProfile" type="xs:anyType"/>
+      <xs:element name="GetProfileResponse" type="xs:anyType"/>
+      <xs:element name="GetServiceCapabilities" type="xs:anyType"/>
+      <xs:element name="GetServiceCapabilitiesResponse" type="xs:anyType"/>
       <xs:element name="GetVideoSources" type="xs:anyType"/>
       <xs:element name="GetVideoSourcesResponse" type="xs:anyType"/>
+      <xs:element name="GetVideoSourceConfigurations" type="xs:anyType"/>
+      <xs:element name="GetVideoSourceConfigurationsResponse" type="xs:anyType"/>
+      <xs:element name="GetVideoSourceConfiguration" type="xs:anyType"/>
+      <xs:element name="GetVideoSourceConfigurationResponse" type="xs:anyType"/>
+      <xs:element name="GetVideoEncoderConfigurations" type="xs:anyType"/>
+      <xs:element name="GetVideoEncoderConfigurationsResponse" type="xs:anyType"/>
+      <xs:element name="GetVideoEncoderConfiguration" type="xs:anyType"/>
+      <xs:element name="GetVideoEncoderConfigurationResponse" type="xs:anyType"/>
       <xs:element name="GetSnapshotUri" type="xs:anyType"/>
       <xs:element name="GetSnapshotUriResponse" type="xs:anyType"/>
       <xs:element name="GetStreamUri" type="xs:anyType"/>
@@ -27,11 +39,47 @@
   <wsdl:message name="GetProfilesResponse">
     <wsdl:part name="parameters" element="trt:GetProfilesResponse"/>
   </wsdl:message>
+  <wsdl:message name="GetProfileRequest">
+    <wsdl:part name="parameters" element="trt:GetProfile"/>
+  </wsdl:message>
+  <wsdl:message name="GetProfileResponse">
+    <wsdl:part name="parameters" element="trt:GetProfileResponse"/>
+  </wsdl:message>
+  <wsdl:message name="GetServiceCapabilitiesRequest">
+    <wsdl:part name="parameters" element="trt:GetServiceCapabilities"/>
+  </wsdl:message>
+  <wsdl:message name="GetServiceCapabilitiesResponse">
+    <wsdl:part name="parameters" element="trt:GetServiceCapabilitiesResponse"/>
+  </wsdl:message>
   <wsdl:message name="GetVideoSourcesRequest">
     <wsdl:part name="parameters" element="trt:GetVideoSources"/>
   </wsdl:message>
   <wsdl:message name="GetVideoSourcesResponse">
     <wsdl:part name="parameters" element="trt:GetVideoSourcesResponse"/>
+  </wsdl:message>
+  <wsdl:message name="GetVideoSourceConfigurationsRequest">
+    <wsdl:part name="parameters" element="trt:GetVideoSourceConfigurations"/>
+  </wsdl:message>
+  <wsdl:message name="GetVideoSourceConfigurationsResponse">
+    <wsdl:part name="parameters" element="trt:GetVideoSourceConfigurationsResponse"/>
+  </wsdl:message>
+  <wsdl:message name="GetVideoSourceConfigurationRequest">
+    <wsdl:part name="parameters" element="trt:GetVideoSourceConfiguration"/>
+  </wsdl:message>
+  <wsdl:message name="GetVideoSourceConfigurationResponse">
+    <wsdl:part name="parameters" element="trt:GetVideoSourceConfigurationResponse"/>
+  </wsdl:message>
+  <wsdl:message name="GetVideoEncoderConfigurationsRequest">
+    <wsdl:part name="parameters" element="trt:GetVideoEncoderConfigurations"/>
+  </wsdl:message>
+  <wsdl:message name="GetVideoEncoderConfigurationsResponse">
+    <wsdl:part name="parameters" element="trt:GetVideoEncoderConfigurationsResponse"/>
+  </wsdl:message>
+  <wsdl:message name="GetVideoEncoderConfigurationRequest">
+    <wsdl:part name="parameters" element="trt:GetVideoEncoderConfiguration"/>
+  </wsdl:message>
+  <wsdl:message name="GetVideoEncoderConfigurationResponse">
+    <wsdl:part name="parameters" element="trt:GetVideoEncoderConfigurationResponse"/>
   </wsdl:message>
   <wsdl:message name="GetSnapshotUriRequest">
     <wsdl:part name="parameters" element="trt:GetSnapshotUri"/>
@@ -51,9 +99,33 @@
       <wsdl:input message="trt:GetProfilesRequest"/>
       <wsdl:output message="trt:GetProfilesResponse"/>
     </wsdl:operation>
+    <wsdl:operation name="GetProfile">
+      <wsdl:input message="trt:GetProfileRequest"/>
+      <wsdl:output message="trt:GetProfileResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="GetServiceCapabilities">
+      <wsdl:input message="trt:GetServiceCapabilitiesRequest"/>
+      <wsdl:output message="trt:GetServiceCapabilitiesResponse"/>
+    </wsdl:operation>
     <wsdl:operation name="GetVideoSources">
       <wsdl:input message="trt:GetVideoSourcesRequest"/>
       <wsdl:output message="trt:GetVideoSourcesResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="GetVideoSourceConfigurations">
+      <wsdl:input message="trt:GetVideoSourceConfigurationsRequest"/>
+      <wsdl:output message="trt:GetVideoSourceConfigurationsResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="GetVideoSourceConfiguration">
+      <wsdl:input message="trt:GetVideoSourceConfigurationRequest"/>
+      <wsdl:output message="trt:GetVideoSourceConfigurationResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="GetVideoEncoderConfigurations">
+      <wsdl:input message="trt:GetVideoEncoderConfigurationsRequest"/>
+      <wsdl:output message="trt:GetVideoEncoderConfigurationsResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="GetVideoEncoderConfiguration">
+      <wsdl:input message="trt:GetVideoEncoderConfigurationRequest"/>
+      <wsdl:output message="trt:GetVideoEncoderConfigurationResponse"/>
     </wsdl:operation>
     <wsdl:operation name="GetSnapshotUri">
       <wsdl:input message="trt:GetSnapshotUriRequest"/>
@@ -72,8 +144,38 @@
       <wsdl:input><soap12:body use="literal"/></wsdl:input>
       <wsdl:output><soap12:body use="literal"/></wsdl:output>
     </wsdl:operation>
+    <wsdl:operation name="GetProfile">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/media/wsdl/GetProfile"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetServiceCapabilities">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/media/wsdl/GetServiceCapabilities"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
     <wsdl:operation name="GetVideoSources">
       <soap12:operation soapAction="http://www.onvif.org/ver10/media/wsdl/GetVideoSources"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetVideoSourceConfigurations">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/media/wsdl/GetVideoSourceConfigurations"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetVideoSourceConfiguration">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/media/wsdl/GetVideoSourceConfiguration"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetVideoEncoderConfigurations">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/media/wsdl/GetVideoEncoderConfigurations"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetVideoEncoderConfiguration">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/media/wsdl/GetVideoEncoderConfiguration"/>
       <wsdl:input><soap12:body use="literal"/></wsdl:input>
       <wsdl:output><soap12:body use="literal"/></wsdl:output>
     </wsdl:operation>

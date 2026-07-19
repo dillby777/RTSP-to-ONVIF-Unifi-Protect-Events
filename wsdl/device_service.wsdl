@@ -18,6 +18,12 @@
       <xs:element name="GetServicesResponse" type="xs:anyType"/>
       <xs:element name="GetDeviceInformation" type="xs:anyType"/>
       <xs:element name="GetDeviceInformationResponse" type="xs:anyType"/>
+      <xs:element name="GetDNS" type="xs:anyType"/>
+      <xs:element name="GetDNSResponse" type="xs:anyType"/>
+      <xs:element name="GetNetworkInterfaces" type="xs:anyType"/>
+      <xs:element name="GetNetworkInterfacesResponse" type="xs:anyType"/>
+      <xs:element name="GetScopes" type="xs:anyType"/>
+      <xs:element name="GetScopesResponse" type="xs:anyType"/>
     </xs:schema>
   </wsdl:types>
 
@@ -45,6 +51,24 @@
   <wsdl:message name="GetDeviceInformationResponse">
     <wsdl:part name="parameters" element="tds:GetDeviceInformationResponse"/>
   </wsdl:message>
+  <wsdl:message name="GetDNSRequest">
+    <wsdl:part name="parameters" element="tds:GetDNS"/>
+  </wsdl:message>
+  <wsdl:message name="GetDNSResponse">
+    <wsdl:part name="parameters" element="tds:GetDNSResponse"/>
+  </wsdl:message>
+  <wsdl:message name="GetNetworkInterfacesRequest">
+    <wsdl:part name="parameters" element="tds:GetNetworkInterfaces"/>
+  </wsdl:message>
+  <wsdl:message name="GetNetworkInterfacesResponse">
+    <wsdl:part name="parameters" element="tds:GetNetworkInterfacesResponse"/>
+  </wsdl:message>
+  <wsdl:message name="GetScopesRequest">
+    <wsdl:part name="parameters" element="tds:GetScopes"/>
+  </wsdl:message>
+  <wsdl:message name="GetScopesResponse">
+    <wsdl:part name="parameters" element="tds:GetScopesResponse"/>
+  </wsdl:message>
 
   <wsdl:portType name="Device">
     <wsdl:operation name="GetSystemDateAndTime">
@@ -62,6 +86,18 @@
     <wsdl:operation name="GetDeviceInformation">
       <wsdl:input message="tds:GetDeviceInformationRequest"/>
       <wsdl:output message="tds:GetDeviceInformationResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="GetDNS">
+      <wsdl:input message="tds:GetDNSRequest"/>
+      <wsdl:output message="tds:GetDNSResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="GetNetworkInterfaces">
+      <wsdl:input message="tds:GetNetworkInterfacesRequest"/>
+      <wsdl:output message="tds:GetNetworkInterfacesResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="GetScopes">
+      <wsdl:input message="tds:GetScopesRequest"/>
+      <wsdl:output message="tds:GetScopesResponse"/>
     </wsdl:operation>
   </wsdl:portType>
 
@@ -84,6 +120,21 @@
     </wsdl:operation>
     <wsdl:operation name="GetDeviceInformation">
       <soap12:operation soapAction="http://www.onvif.org/ver10/device/wsdl/GetDeviceInformation"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetDNS">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/device/wsdl/GetDNS"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetNetworkInterfaces">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/device/wsdl/GetNetworkInterfaces"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetScopes">
+      <soap12:operation soapAction="http://www.onvif.org/ver10/device/wsdl/GetScopes"/>
       <wsdl:input><soap12:body use="literal"/></wsdl:input>
       <wsdl:output><soap12:body use="literal"/></wsdl:output>
     </wsdl:operation>

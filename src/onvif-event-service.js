@@ -114,10 +114,10 @@ module.exports = class OnvifEventService {
     }
 
     getEventPropertiesResponse() {
-        return `    <tev:GetEventPropertiesResponse>
+                return `    <tev:GetEventPropertiesResponse xmlns:tev="http://www.onvif.org/ver10/events/wsdl" xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2" xmlns:tns1="http://www.onvif.org/ver10/topics" xmlns:wstop="http://docs.oasis-open.org/wsn/t-1">
       <tev:TopicNamespaceLocation>http://www.onvif.org/ver10/topics/topicns.xml</tev:TopicNamespaceLocation>
       <tev:FixedTopicSet>true</tev:FixedTopicSet>
-      <tev:TopicSet xmlns:tns1="http://www.onvif.org/ver10/topics" xmlns:wstop="http://docs.oasis-open.org/wsn/t-1">
+            <wsnt:TopicSet>
                 <tns1:RuleEngine wstop:topic="true">
                     <tns1:CellMotionDetector wstop:topic="true">
                         <tns1:Motion wstop:topic="true"/>
@@ -132,9 +132,9 @@ module.exports = class OnvifEventService {
                         <tns1:AnalyticsService wstop:topic="true"/>
                     </tns1:GlobalSceneChange>
                 </tns1:VideoSource>
-            </tev:TopicSet>
+      </wsnt:TopicSet>
       <tev:TopicExpressionDialect>http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet</tev:TopicExpressionDialect>
-            <tev:TopicExpressionDialect>http://docs.oasis-open.org/wsn/t-1/TopicExpression/Concrete</tev:TopicExpressionDialect>
+      <tev:TopicExpressionDialect>http://docs.oasis-open.org/wsn/t-1/TopicExpression/Concrete</tev:TopicExpressionDialect>
       <tev:MessageContentFilterDialect>http://www.onvif.org/ver10/tev/messageContentFilter/ItemFilter</tev:MessageContentFilterDialect>
       <tev:ProducerPropertiesFilterDialect>http://www.onvif.org/ver10/tev/producerPropertiesFilter/ItemFilter</tev:ProducerPropertiesFilterDialect>
       <tev:MessageContentSchemaLocation>http://www.onvif.org/ver10/schema/onvif.xsd</tev:MessageContentSchemaLocation>
@@ -142,7 +142,7 @@ module.exports = class OnvifEventService {
     }
 
     getServiceCapabilitiesResponse() {
-        return `    <tev:GetServiceCapabilitiesResponse>
+                return `    <tev:GetServiceCapabilitiesResponse xmlns:tev="http://www.onvif.org/ver10/events/wsdl">
       <tev:Capabilities WSSubscriptionPolicySupport="false" WSPullPointSupport="true" WSPausableSubscriptionManagerInterfaceSupport="false" MaxNotificationProducers="1" MaxPullPoints="32" PersistentNotificationStorage="false"/>
     </tev:GetServiceCapabilitiesResponse>`;
     }
@@ -152,7 +152,7 @@ module.exports = class OnvifEventService {
         let subscription = this.createSubscription(timeout);
                 this.logger.info(`EVENTS: ${this.config.name} created local pull-point subscription ${subscription.id}`);
 
-        return `    <tev:CreatePullPointSubscriptionResponse>
+                return `    <tev:CreatePullPointSubscriptionResponse xmlns:tev="http://www.onvif.org/ver10/events/wsdl" xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2" xmlns:wsa="http://www.w3.org/2005/08/addressing">
             ${this.subscriptionReferenceXml(subscription.id)}
       <wsnt:CurrentTime>${new Date().toISOString()}</wsnt:CurrentTime>
       <wsnt:TerminationTime>${subscription.terminationTime}</wsnt:TerminationTime>
@@ -164,7 +164,7 @@ module.exports = class OnvifEventService {
                 let subscription = this.createSubscription(timeout);
                 this.logger.info(`EVENTS: ${this.config.name} created local WS-Notification subscription ${subscription.id}`);
 
-                return `    <wsnt:SubscribeResponse>
+                return `    <wsnt:SubscribeResponse xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2" xmlns:tev="http://www.onvif.org/ver10/events/wsdl" xmlns:wsa="http://www.w3.org/2005/08/addressing">
             ${this.subscriptionReferenceXml(subscription.id)}
             <wsnt:CurrentTime>${new Date().toISOString()}</wsnt:CurrentTime>
             <wsnt:TerminationTime>${subscription.terminationTime}</wsnt:TerminationTime>
@@ -173,12 +173,12 @@ module.exports = class OnvifEventService {
 
         subscriptionReferenceXml(subscriptionId) {
                 let subscriptionAddress = this.getSubscriptionAddress(subscriptionId);
-                return `<wsnt:SubscriptionReference>
+                return `<tev:SubscriptionReference>
                     <wsa:Address>${subscriptionAddress}</wsa:Address>
                     <wsa:ReferenceParameters>
                     <tev:SubscriptionId>${subscriptionId}</tev:SubscriptionId>
                     </wsa:ReferenceParameters>
-            </wsnt:SubscriptionReference>`;
+            </tev:SubscriptionReference>`;
         }
 
     pullMessagesResponse(requestPath, body) {
@@ -321,9 +321,9 @@ module.exports = class OnvifEventService {
     }
 
     buildPullMessagesResponse(subscription, events) {
-        return `    <tev:PullMessagesResponse>
-      <wsnt:CurrentTime>${new Date().toISOString()}</wsnt:CurrentTime>
-      <wsnt:TerminationTime>${subscription.terminationTime}</wsnt:TerminationTime>
+                return `    <tev:PullMessagesResponse xmlns:tev="http://www.onvif.org/ver10/events/wsdl" xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2" xmlns:wsa="http://www.w3.org/2005/08/addressing" xmlns:tt="http://www.onvif.org/ver10/schema">
+            <tev:CurrentTime>${new Date().toISOString()}</tev:CurrentTime>
+            <tev:TerminationTime>${subscription.terminationTime}</tev:TerminationTime>
 ${events.map((event) => this.notificationMessageXml(event)).join('\n')}
     </tev:PullMessagesResponse>`;
     }
@@ -332,6 +332,7 @@ ${events.map((event) => this.notificationMessageXml(event)).join('\n')}
                 let topic = this.xmlEscape(event.topic || 'tns1:VideoSource/CellMotionDetector/Motion');
         return `      <wsnt:NotificationMessage>
                 <wsnt:Topic xmlns:tns1="http://www.onvif.org/ver10/topics" Dialect="http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet">${topic}</wsnt:Topic>
+                <wsnt:ProducerReference/>
         <wsnt:Message>
           <tt:Message UtcTime="${this.xmlEscape(event.utcTime || new Date().toISOString())}" PropertyOperation="${this.xmlEscape(event.propertyOperation || 'Changed')}">
             <tt:Source>
