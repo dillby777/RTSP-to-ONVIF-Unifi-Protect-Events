@@ -54,7 +54,7 @@ module.exports = class OnvifEventService {
     }
 
     getPrimaryEventsPath() {
-        return '/onvif/event_service';
+        return '/onvif/events_service';
     }
 
     isEventsPath(requestPath) {
@@ -62,7 +62,10 @@ module.exports = class OnvifEventService {
     }
 
     isEventsServicePath(requestPath) {
-        return requestPath === '/onvif/event_service' || requestPath === '/onvif/events_service';
+        return requestPath === '/onvif/event_service'
+            || requestPath === '/onvif/events_service'
+            || requestPath === '/onvif/event'
+            || requestPath === '/onvif/events';
     }
 
     isSubscriptionPath(requestPath) {
@@ -388,6 +391,13 @@ ${(event.dataItems || []).map((item) => `              <tt:SimpleItem Name="${th
 
         if (this.subscriptions.size === 1) {
             return this.subscriptions.values().next().value;
+        }
+
+        if (this.subscriptions.size === 0 && this.isEventsServicePath(requestPath)) {
+            // Compatibility fallback for clients that call PullMessages without creating a pull-point first.
+            let fallbackSubscription = this.createSubscription(300000);
+            this.logger.info(`EVENTS: ${this.config.name} auto-created local pull-point subscription ${fallbackSubscription.id} for compatibility`);
+            return fallbackSubscription;
         }
 
         if (this.subscriptions.size === 0) {

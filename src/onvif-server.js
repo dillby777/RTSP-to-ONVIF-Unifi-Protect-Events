@@ -686,7 +686,8 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
             }
 
             if (this.eventService && this.eventService.isEventsPath(requestPath)) {
-                this.logger.info(`EVENTS: ${this.config.name} request path=${requestPath} action=${action || '(none)'} soapAction=${soapAction || '(none)'}`);
+                let eventRequestType = this.eventService.isSubscriptionPath(requestPath) ? 'subscription' : 'service';
+                this.logger.info(`EVENTS: ${this.config.name} request type=${eventRequestType} path=${requestPath} action=${action || '(none)'} soapAction=${soapAction || '(none)'}`);
             }
 
             try {
@@ -743,7 +744,7 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
             let xml = fs.readFileSync('./wsdl/media_service.wsdl', 'utf8');
             response.writeHead(200, { 'Content-Type': 'text/xml; charset=utf-8' });
             response.end(xml);
-        } else if ((action == '/onvif/event_service' || action == '/onvif/events_service') && request.method == 'GET' && this.eventService) {
+        } else if ((action == '/onvif/event_service' || action == '/onvif/events_service' || action == '/onvif/event' || action == '/onvif/events') && request.method == 'GET' && this.eventService) {
             let xml = fs.readFileSync('./wsdl/events_service.wsdl', 'utf8');
             let serviceAddress = `http://${this.config.hostname}:${this.config.ports.server}${this.eventService.getPrimaryEventsPath()}`;
             xml = xml.replace(/<soap12:address location="[^"]*"\/>/, `<soap12:address location="${serviceAddress}"/>`);
@@ -823,7 +824,7 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
                                             onvif://www.onvif.org/name/${this.config.name}
                                             onvif://www.onvif.org/location/
                                         </d:Scopes>
-                                        <d:XAddrs>http://${this.config.hostname}:${this.config.ports.server}/onvif/device_service http://${this.config.hostname}:${this.config.ports.server}/onvif/event_service</d:XAddrs>
+                                        <d:XAddrs>http://${this.config.hostname}:${this.config.ports.server}/onvif/device_service http://${this.config.hostname}:${this.config.ports.server}/onvif/events_service http://${this.config.hostname}:${this.config.ports.server}/onvif/event_service</d:XAddrs>
                                         <d:MetadataVersion>1</d:MetadataVersion>
                                     </d:ProbeMatch>
                                 </d:ProbeMatches>
