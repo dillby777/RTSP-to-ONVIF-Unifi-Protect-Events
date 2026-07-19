@@ -453,10 +453,11 @@ ${content}
     getServicesResponse() {
                 let eventServiceXml = '';
                 if (this.eventService && this.eventService.isEnabled()) {
+                        let primaryEventsPath = this.eventService.getPrimaryEventsPath();
                         eventServiceXml = `
             <tds:Service>
                 <tds:Namespace>http://www.onvif.org/ver10/events/wsdl</tds:Namespace>
-                <tds:XAddr>http://${this.config.hostname}:${this.config.ports.server}/onvif/events_service</tds:XAddr>
+                <tds:XAddr>http://${this.config.hostname}:${this.config.ports.server}${primaryEventsPath}</tds:XAddr>
                 <tds:Version><tt:Major>2</tt:Major><tt:Minor>5</tt:Minor></tds:Version>
             </tds:Service>`;
                 }
@@ -478,9 +479,10 @@ ${content}
     getCapabilitiesResponse() {
                 let eventsCapabilitiesXml = '';
                 if (this.eventService && this.eventService.isEnabled()) {
+                        let primaryEventsPath = this.eventService.getPrimaryEventsPath();
                         eventsCapabilitiesXml = `
                 <tt:Events>
-                    <tt:XAddr>http://${this.config.hostname}:${this.config.ports.server}/onvif/events_service</tt:XAddr>
+                    <tt:XAddr>http://${this.config.hostname}:${this.config.ports.server}${primaryEventsPath}</tt:XAddr>
                     <tt:WSPullPointSupport>true</tt:WSPullPointSupport>
                     <tt:WSSubscriptionPolicySupport>false</tt:WSSubscriptionPolicySupport>
                     <tt:WSPausableSubscriptionManagerInterfaceSupport>false</tt:WSPausableSubscriptionManagerInterfaceSupport>
@@ -741,9 +743,9 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
             let xml = fs.readFileSync('./wsdl/media_service.wsdl', 'utf8');
             response.writeHead(200, { 'Content-Type': 'text/xml; charset=utf-8' });
             response.end(xml);
-        } else if (action == '/onvif/events_service' && request.method == 'GET' && this.eventService) {
+        } else if ((action == '/onvif/event_service' || action == '/onvif/events_service') && request.method == 'GET' && this.eventService) {
             let xml = fs.readFileSync('./wsdl/events_service.wsdl', 'utf8');
-            let serviceAddress = `http://${this.config.hostname}:${this.config.ports.server}/onvif/events_service`;
+            let serviceAddress = `http://${this.config.hostname}:${this.config.ports.server}${this.eventService.getPrimaryEventsPath()}`;
             xml = xml.replace(/<soap12:address location="[^"]*"\/>/, `<soap12:address location="${serviceAddress}"/>`);
             response.writeHead(200, { 'Content-Type': 'text/xml; charset=utf-8' });
             response.end(xml);
@@ -821,7 +823,7 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
                                             onvif://www.onvif.org/name/${this.config.name}
                                             onvif://www.onvif.org/location/
                                         </d:Scopes>
-                                        <d:XAddrs>http://${this.config.hostname}:${this.config.ports.server}/onvif/device_service</d:XAddrs>
+                                        <d:XAddrs>http://${this.config.hostname}:${this.config.ports.server}/onvif/device_service http://${this.config.hostname}:${this.config.ports.server}/onvif/event_service</d:XAddrs>
                                         <d:MetadataVersion>1</d:MetadataVersion>
                                     </d:ProbeMatch>
                                 </d:ProbeMatches>

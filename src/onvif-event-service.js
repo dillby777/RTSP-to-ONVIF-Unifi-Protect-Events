@@ -53,8 +53,20 @@ module.exports = class OnvifEventService {
         return Boolean(this.config.events && this.config.events.enabled);
     }
 
+    getPrimaryEventsPath() {
+        return '/onvif/event_service';
+    }
+
     isEventsPath(requestPath) {
-        return requestPath === '/onvif/events_service' || /^\/onvif\/events\/subscriptions\//.test(requestPath);
+        return this.isEventsServicePath(requestPath) || this.isSubscriptionPath(requestPath);
+    }
+
+    isEventsServicePath(requestPath) {
+        return requestPath === '/onvif/event_service' || requestPath === '/onvif/events_service';
+    }
+
+    isSubscriptionPath(requestPath) {
+        return /^\/onvif\/(?:event_service|events_service|event|events)\/subscriptions\//.test(requestPath);
     }
 
     handleRequest(action, requestPath, body) {
@@ -330,11 +342,11 @@ ${(event.dataItems || []).map((item) => `              <tt:SimpleItem Name="${th
     }
 
     getSubscriptionAddress(id) {
-        return `http://${this.config.hostname}:${this.config.ports.server}/onvif/events/subscriptions/${id}`;
+        return `http://${this.config.hostname}:${this.config.ports.server}${this.getPrimaryEventsPath()}/subscriptions/${id}`;
     }
 
     getSubscriptionFromPath(requestPath) {
-        let match = requestPath.match(/^\/onvif\/events\/subscriptions\/([^/]+)$/);
+        let match = requestPath.match(/^\/onvif\/(?:event_service|events_service|event|events)\/subscriptions\/([^/]+)$/);
         if (!match) {
             throw new Error('Subscription reference missing from request path');
         }
@@ -350,7 +362,7 @@ ${(event.dataItems || []).map((item) => `              <tt:SimpleItem Name="${th
     getSubscriptionIdFromBody(body) {
         let idFromPath = this.getRequestValue(body || '', 'Address');
         if (idFromPath) {
-            let pathMatch = idFromPath.match(/\/onvif\/events\/subscriptions\/([^/\s<]+)$/);
+            let pathMatch = idFromPath.match(/\/onvif\/(?:event_service|events_service|event|events)\/subscriptions\/([^/\s<]+)$/);
             if (pathMatch) {
                 return pathMatch[1];
             }
@@ -365,7 +377,7 @@ ${(event.dataItems || []).map((item) => `              <tt:SimpleItem Name="${th
     }
 
     resolveSubscription(requestPath, body) {
-        if (/^\/onvif\/events\/subscriptions\//.test(requestPath)) {
+        if (this.isSubscriptionPath(requestPath)) {
             return this.getSubscriptionFromPath(requestPath);
         }
 
