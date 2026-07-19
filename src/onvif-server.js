@@ -584,6 +584,77 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
     </trt:GetStreamUriResponse>`;
     }
 
+        getDnsResponse() {
+                return `    <tds:GetDNSResponse>
+            <tds:DNSInformation>
+                <tt:FromDHCP>true</tt:FromDHCP>
+            </tds:DNSInformation>
+        </tds:GetDNSResponse>`;
+        }
+
+        getNetworkInterfacesResponse() {
+                let macAddress = this.xmlEscape(String(this.config.mac || '').toLowerCase());
+                return `    <tds:GetNetworkInterfacesResponse>
+            <tds:NetworkInterfaces token="eth0">
+                <tt:Enabled>true</tt:Enabled>
+                <tt:Info>
+                    <tt:Name>eth0</tt:Name>
+                    <tt:HwAddress>${macAddress}</tt:HwAddress>
+                    <tt:MTU>1500</tt:MTU>
+                </tt:Info>
+                <tt:Link>
+                    <tt:AdminSettings>
+                        <tt:AutoNegotiation>true</tt:AutoNegotiation>
+                        <tt:Speed>1000</tt:Speed>
+                        <tt:Duplex>Full</tt:Duplex>
+                        <tt:InterfaceType>6</tt:InterfaceType>
+                    </tt:AdminSettings>
+                    <tt:OperSettings>
+                        <tt:AutoNegotiation>true</tt:AutoNegotiation>
+                        <tt:Speed>1000</tt:Speed>
+                        <tt:Duplex>Full</tt:Duplex>
+                        <tt:InterfaceType>6</tt:InterfaceType>
+                    </tt:OperSettings>
+                </tt:Link>
+                <tt:IPv4>
+                    <tt:Enabled>true</tt:Enabled>
+                    <tt:Config>
+                        <tt:Manual>
+                            <tt:Address>${this.xmlEscape(this.config.hostname)}</tt:Address>
+                            <tt:PrefixLength>24</tt:PrefixLength>
+                        </tt:Manual>
+                        <tt:DHCP>true</tt:DHCP>
+                    </tt:Config>
+                </tt:IPv4>
+                <tt:IPv6>
+                    <tt:Enabled>false</tt:Enabled>
+                </tt:IPv6>
+            </tds:NetworkInterfaces>
+        </tds:GetNetworkInterfacesResponse>`;
+        }
+
+        getScopesResponse() {
+                let safeName = this.xmlEscape(this.config.name);
+                return `    <tds:GetScopesResponse>
+            <tds:Scopes>
+                <tt:ScopeDef>Fixed</tt:ScopeDef>
+                <tt:ScopeItem>onvif://www.onvif.org/type/video_encoder</tt:ScopeItem>
+            </tds:Scopes>
+            <tds:Scopes>
+                <tt:ScopeDef>Fixed</tt:ScopeDef>
+                <tt:ScopeItem>onvif://www.onvif.org/hardware/onvif</tt:ScopeItem>
+            </tds:Scopes>
+            <tds:Scopes>
+                <tt:ScopeDef>Fixed</tt:ScopeDef>
+                <tt:ScopeItem>onvif://www.onvif.org/name/${safeName}</tt:ScopeItem>
+            </tds:Scopes>
+            <tds:Scopes>
+                <tt:ScopeDef>Fixed</tt:ScopeDef>
+                <tt:ScopeItem>onvif://www.onvif.org/location/</tt:ScopeItem>
+            </tds:Scopes>
+        </tds:GetScopesResponse>`;
+        }
+
     async handleOnvifRequest(request, response, requestPath) {
         this.readRequestBody(request, (body) => {
             let action = this.getRequestAction(request, body);
@@ -627,6 +698,12 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
                         return this.sendSoapResponse(response, this.getSnapshotUriResponse(profileToken));
                     case 'GetStreamUri':
                         return this.sendSoapResponse(response, this.getStreamUriResponse(profileToken));
+                    case 'GetDNS':
+                        return this.sendSoapResponse(response, this.getDnsResponse());
+                    case 'GetNetworkInterfaces':
+                        return this.sendSoapResponse(response, this.getNetworkInterfacesResponse());
+                    case 'GetScopes':
+                        return this.sendSoapResponse(response, this.getScopesResponse());
                     default:
                         return this.sendSoapFault(response, `Unsupported ONVIF action ${action || '(none)'}`);
                 }
