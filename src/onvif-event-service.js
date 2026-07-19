@@ -116,7 +116,8 @@ module.exports = class OnvifEventService {
     getEventPropertiesResponse() {
         return `    <tev:GetEventPropertiesResponse>
       <tev:TopicNamespaceLocation>http://www.onvif.org/ver10/topics/topicns.xml</tev:TopicNamespaceLocation>
-      <wsnt:TopicSet xmlns:tns1="http://www.onvif.org/ver10/topics" xmlns:wstop="http://docs.oasis-open.org/wsn/t-1">
+      <tev:FixedTopicSet>true</tev:FixedTopicSet>
+      <tev:TopicSet xmlns:tns1="http://www.onvif.org/ver10/topics" xmlns:wstop="http://docs.oasis-open.org/wsn/t-1">
                 <tns1:RuleEngine wstop:topic="true">
                     <tns1:CellMotionDetector wstop:topic="true">
                         <tns1:Motion wstop:topic="true"/>
@@ -131,8 +132,7 @@ module.exports = class OnvifEventService {
                         <tns1:AnalyticsService wstop:topic="true"/>
                     </tns1:GlobalSceneChange>
                 </tns1:VideoSource>
-      </wsnt:TopicSet>
-            <tev:FixedTopicSet>true</tev:FixedTopicSet>
+            </tev:TopicSet>
       <tev:TopicExpressionDialect>http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet</tev:TopicExpressionDialect>
             <tev:TopicExpressionDialect>http://docs.oasis-open.org/wsn/t-1/TopicExpression/Concrete</tev:TopicExpressionDialect>
       <tev:MessageContentFilterDialect>http://www.onvif.org/ver10/tev/messageContentFilter/ItemFilter</tev:MessageContentFilterDialect>

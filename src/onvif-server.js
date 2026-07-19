@@ -697,6 +697,11 @@ ${this.profiles.map((profile) => this.profileXml(profile)).join('\n')}
                         return eventResponse.then((xml) => this.sendSoapResponse(response, xml)).catch((error) => this.sendSoapFault(response, error.message));
                     }
 
+                    if (process.env.DEBUG && typeof eventResponse === 'string') {
+                        let preview = eventResponse.replace(/\s+/g, ' ').trim().slice(0, 320);
+                        this.logger.debug(`EVENTS: ${this.config.name} response action=${action || '(none)'} preview=${preview}`);
+                    }
+
                     return this.sendSoapResponse(response, eventResponse);
                 }
 
