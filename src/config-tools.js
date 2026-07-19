@@ -58,8 +58,12 @@ function validateEventsConfig(logger, onvifConfig) {
             failConfig(logger, `${onvifConfig.name}: events.source must be a string when set (quote numeric-like values, e.g. "00000")`);
         }
 
-        if (!onvifConfig.events.source.trim()) {
-            failConfig(logger, `${onvifConfig.name}: events.source cannot be an empty string`);
+        let normalizedSource = onvifConfig.events.source.trim();
+        if (!normalizedSource) {
+            // Empty source means "no source filter" for easier troubleshooting and onboarding.
+            delete onvifConfig.events.source;
+        } else {
+            onvifConfig.events.source = normalizedSource;
         }
     }
 }

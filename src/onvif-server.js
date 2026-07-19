@@ -355,18 +355,34 @@ module.exports = class OnvifServer {
             }
         }
 
-        let soapAction = request && request.headers ? request.headers.soapaction : null;
-        if (!soapAction) {
+        let headerAction = request && request.headers ? (request.headers.soapaction || this.getActionFromContentType(request.headers['content-type'])) : null;
+        if (headerAction) {
+            let normalizedAction = String(headerAction).trim().replace(/^"|"$/g, '');
+            let actionMatch = normalizedAction.match(/([A-Za-z0-9_]+)$/);
+            if (actionMatch) {
+                return actionMatch[1];
+            }
+        }
+
+        // Fallback for clients that provide only WS-Addressing Action in SOAP headers.
+        let wsAddressingAction = this.getRequestValue(body, 'Action');
+        if (wsAddressingAction) {
+            let actionMatch = wsAddressingAction.match(/([A-Za-z0-9_]+)(?:Request)?$/);
+            if (actionMatch) {
+                return actionMatch[1];
+            }
+        }
+
+        return null;
+    }
+
+    getActionFromContentType(contentType) {
+        if (!contentType) {
             return null;
         }
 
-        let normalizedAction = String(soapAction).trim().replace(/^"|"$/g, '');
-        if (!normalizedAction) {
-            return null;
-        }
-
-        let actionMatch = normalizedAction.match(/([A-Za-z0-9_]+)$/);
-        return actionMatch ? actionMatch[1] : null;
+        let match = String(contentType).match(/(?:^|;)\s*action="?([^";]+)"?/i);
+        return match ? match[1] : null;
     }
 
     getRequestValue(body, name) {

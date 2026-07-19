@@ -58,7 +58,9 @@ module.exports = class OnvifEventService {
     }
 
     handleRequest(action, requestPath, body) {
-        switch (action) {
+        let normalizedAction = this.normalizeAction(action);
+
+        switch (normalizedAction) {
             case 'GetEventProperties':
                 return this.getEventPropertiesResponse();
             case 'GetServiceCapabilities':
@@ -75,8 +77,23 @@ module.exports = class OnvifEventService {
             case 'Unsubscribe':
                 return this.unsubscribeResponse(requestPath, body);
             default:
-                throw new Error(`Unsupported ONVIF event action ${action || '(none)'}`);
+                throw new Error(`Unsupported ONVIF event action ${normalizedAction || action || '(none)'}`);
         }
+    }
+
+    normalizeAction(action) {
+        if (!action) {
+            return action;
+        }
+
+        let normalized = String(action).trim().replace(/^.*[/:]/, '');
+        normalized = normalized.replace(/Request$/, '');
+
+        if (normalized === 'Pull') {
+            return 'PullMessages';
+        }
+
+        return normalized;
     }
 
     getEventPropertiesResponse() {
@@ -248,7 +265,7 @@ module.exports = class OnvifEventService {
     }
 
     matchesSourceFilter(event) {
-        let filter = this.config.events && this.config.events.source;
+        let filter = this.config.events && typeof this.config.events.source === 'string' ? this.config.events.source.trim() : '';
         if (!filter) {
             return true;
         }
