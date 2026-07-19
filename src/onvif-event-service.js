@@ -17,6 +17,8 @@ module.exports = class OnvifEventService {
         this.logger = logger;
         this.config = config;
         this.subscriptions = new Map();
+        this.recentEventsLimit = 32;
+        this.recentEvents = [];
         this.client = null;
         this.onUpstreamEvent = this.handleUpstreamEvent.bind(this);
         this.cleanupTimer = setInterval(() => this.cleanupExpiredSubscriptions(), 30000);
@@ -115,18 +117,21 @@ module.exports = class OnvifEventService {
         return `    <tev:GetEventPropertiesResponse>
       <tev:TopicNamespaceLocation>http://www.onvif.org/ver10/topics/topicns.xml</tev:TopicNamespaceLocation>
       <tev:TopicSet xmlns:tns1="http://www.onvif.org/ver10/topics" xmlns:wstop="http://docs.oasis-open.org/wsn/t-1">
-        <tns1:VideoSource>
-          <tns1:CellMotionDetector>
-            <tns1:Motion wstop:topic="true"/>
-          </tns1:CellMotionDetector>
-        </tns1:VideoSource>
-                <tns1:RuleEngine>
-                    <tns1:CellMotionDetector>
+                <tns1:RuleEngine wstop:topic="true">
+                    <tns1:CellMotionDetector wstop:topic="true">
                         <tns1:Motion wstop:topic="true"/>
                     </tns1:CellMotionDetector>
                 </tns1:RuleEngine>
+                <tns1:VideoSource wstop:topic="true">
+                    <tns1:MotionAlarm wstop:topic="true"/>
+                    <tns1:GlobalSceneChange wstop:topic="true">
+                        <tns1:AnalyticsService wstop:topic="true"/>
+                    </tns1:GlobalSceneChange>
+                </tns1:VideoSource>
       </tev:TopicSet>
+            <tev:FixedTopicSet>true</tev:FixedTopicSet>
       <tev:TopicExpressionDialect>http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet</tev:TopicExpressionDialect>
+            <tev:TopicExpressionDialect>http://docs.oasis-open.org/wsn/t-1/TopicExpression/Concrete</tev:TopicExpressionDialect>
       <tev:MessageContentFilterDialect>http://www.onvif.org/ver10/tev/messageContentFilter/ItemFilter</tev:MessageContentFilterDialect>
       <tev:ProducerPropertiesFilterDialect>http://www.onvif.org/ver10/tev/producerPropertiesFilter/ItemFilter</tev:ProducerPropertiesFilterDialect>
       <tev:MessageContentSchemaLocation>http://www.onvif.org/ver10/schema/onvif.xsd</tev:MessageContentSchemaLocation>
@@ -166,10 +171,10 @@ module.exports = class OnvifEventService {
         subscriptionReferenceXml(subscriptionId) {
                 let subscriptionAddress = this.getSubscriptionAddress(subscriptionId);
                 return `<wsnt:SubscriptionReference>
-                <wsa5:Address>${subscriptionAddress}</wsa5:Address>
-                <wsa5:ReferenceParameters>
+                    <wsa:Address>${subscriptionAddress}</wsa:Address>
+                    <wsa:ReferenceParameters>
                     <tev:SubscriptionId>${subscriptionId}</tev:SubscriptionId>
-                </wsa5:ReferenceParameters>
+                    </wsa:ReferenceParameters>
             </wsnt:SubscriptionReference>`;
         }
 
@@ -223,14 +228,20 @@ module.exports = class OnvifEventService {
 
     createSubscription(timeout) {
         let id = uuid.v4();
+        let bootstrapEvents = this.getRecentEventsSnapshot();
         let subscription = {
             id,
-            queue: [],
+            queue: bootstrapEvents,
             pendingPull: null,
             terminationTime: new Date(Date.now() + timeout).toISOString()
         };
 
         this.subscriptions.set(id, subscription);
+
+        if (bootstrapEvents.length) {
+            this.logger.info(`EVENTS: ${this.config.name} primed local subscription ${id} with ${bootstrapEvents.length} recent event(s)`);
+        }
+
         return subscription;
     }
 
@@ -263,6 +274,8 @@ module.exports = class OnvifEventService {
             this.logger.info(`EVENTS: ${this.config.name} dropped upstream event due to source filter '${this.config.events.source}' (topic='${event.topic || ''}' source='${event.sourceText || ''}')`);
             return;
         }
+
+        this.pushRecentEvent(event);
 
         if (this.subscriptions.size === 0) {
             this.logger.info(`EVENTS: ${this.config.name} received upstream event but no local ONVIF subscriptions are active yet`);
@@ -342,6 +355,17 @@ ${(event.dataItems || []).map((item) => `              <tt:SimpleItem Name="${th
     parseInteger(value, defaultValue) {
         let parsed = parseInt(value, 10);
         return Number.isFinite(parsed) ? parsed : defaultValue;
+    }
+
+    pushRecentEvent(event) {
+        this.recentEvents.push(event);
+        if (this.recentEvents.length > this.recentEventsLimit) {
+            this.recentEvents.splice(0, this.recentEvents.length - this.recentEventsLimit);
+        }
+    }
+
+    getRecentEventsSnapshot() {
+        return this.recentEvents.slice();
     }
 
     getSubscriptionAddress(id) {
