@@ -116,19 +116,22 @@ module.exports = class OnvifEventService {
     getEventPropertiesResponse() {
         return `    <tev:GetEventPropertiesResponse>
       <tev:TopicNamespaceLocation>http://www.onvif.org/ver10/topics/topicns.xml</tev:TopicNamespaceLocation>
-      <tev:TopicSet xmlns:tns1="http://www.onvif.org/ver10/topics" xmlns:wstop="http://docs.oasis-open.org/wsn/t-1">
+      <wsnt:TopicSet xmlns:tns1="http://www.onvif.org/ver10/topics" xmlns:wstop="http://docs.oasis-open.org/wsn/t-1">
                 <tns1:RuleEngine wstop:topic="true">
                     <tns1:CellMotionDetector wstop:topic="true">
                         <tns1:Motion wstop:topic="true"/>
                     </tns1:CellMotionDetector>
                 </tns1:RuleEngine>
                 <tns1:VideoSource wstop:topic="true">
+                    <tns1:CellMotionDetector wstop:topic="true">
+                        <tns1:Motion wstop:topic="true"/>
+                    </tns1:CellMotionDetector>
                     <tns1:MotionAlarm wstop:topic="true"/>
                     <tns1:GlobalSceneChange wstop:topic="true">
                         <tns1:AnalyticsService wstop:topic="true"/>
                     </tns1:GlobalSceneChange>
                 </tns1:VideoSource>
-      </tev:TopicSet>
+      </wsnt:TopicSet>
             <tev:FixedTopicSet>true</tev:FixedTopicSet>
       <tev:TopicExpressionDialect>http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet</tev:TopicExpressionDialect>
             <tev:TopicExpressionDialect>http://docs.oasis-open.org/wsn/t-1/TopicExpression/Concrete</tev:TopicExpressionDialect>
@@ -275,14 +278,20 @@ module.exports = class OnvifEventService {
             return;
         }
 
-        this.pushRecentEvent(event);
+        let eventsToDeliver = this.expandEventVariants(event);
+        for (let expandedEvent of eventsToDeliver) {
+            this.pushRecentEvent(expandedEvent);
+        }
 
         if (this.subscriptions.size === 0) {
             this.logger.info(`EVENTS: ${this.config.name} received upstream event but no local ONVIF subscriptions are active yet`);
         }
 
         for (let subscription of this.subscriptions.values()) {
-            subscription.queue.push(event);
+            for (let expandedEvent of eventsToDeliver) {
+                subscription.queue.push(expandedEvent);
+            }
+
             if (subscription.pendingPull) {
                 clearTimeout(subscription.pendingPull.timer);
                 let pendingPull = subscription.pendingPull;
@@ -355,6 +364,123 @@ ${(event.dataItems || []).map((item) => `              <tt:SimpleItem Name="${th
     parseInteger(value, defaultValue) {
         let parsed = parseInt(value, 10);
         return Number.isFinite(parsed) ? parsed : defaultValue;
+    }
+
+    expandEventVariants(event) {
+        let baseEvent = this.cloneEvent(event);
+        let variants = [baseEvent];
+        let topic = String(baseEvent.topic || '');
+        let looksLikeMotion = topic.includes('CellMotionDetector/Motion') || topic.includes('MotionAlarm');
+        let motionValue = this.extractMotionState(baseEvent.dataItems);
+
+        if (!looksLikeMotion || motionValue === null) {
+            return variants;
+        }
+
+        let sourceToken = this.extractSourceToken(baseEvent.sourceItems, baseEvent.sourceText);
+        let sourceItems = this.withSourceAliases(baseEvent.sourceItems, sourceToken);
+        let dataItems = [{ name: 'IsMotion', value: motionValue ? 'true' : 'false' }];
+
+        variants.push(this.createDerivedEvent(baseEvent, 'tns1:RuleEngine/CellMotionDetector/Motion', sourceItems, dataItems));
+        variants.push(this.createDerivedEvent(baseEvent, 'tns1:VideoSource/MotionAlarm', sourceItems, dataItems));
+        variants.push(this.createDerivedEvent(baseEvent, 'tns1:VideoSource/CellMotionDetector/Motion', sourceItems, dataItems));
+
+        return this.dedupeEvents(variants);
+    }
+
+    cloneEvent(event) {
+        return {
+            topic: event.topic || '',
+            sourceItems: asArray(event.sourceItems).map((item) => ({ name: item.name || '', value: item.value || '' })),
+            sourceText: event.sourceText || '',
+            dataItems: asArray(event.dataItems).map((item) => ({ name: item.name || '', value: item.value || '' })),
+            dataText: event.dataText || '',
+            utcTime: event.utcTime || new Date().toISOString(),
+            propertyOperation: event.propertyOperation || 'Changed'
+        };
+    }
+
+    createDerivedEvent(baseEvent, topic, sourceItems, dataItems) {
+        return {
+            topic,
+            sourceItems,
+            sourceText: sourceItems.map((item) => `${item.name}: ${item.value}`).join(' '),
+            dataItems,
+            dataText: dataItems.map((item) => `${item.name}: ${item.value}`).join(' '),
+            utcTime: baseEvent.utcTime,
+            propertyOperation: baseEvent.propertyOperation
+        };
+    }
+
+    extractMotionState(dataItems) {
+        for (let item of asArray(dataItems)) {
+            let name = String(item.name || '').toLowerCase();
+            if (name !== 'ismotion' && name !== 'state') {
+                continue;
+            }
+
+            let normalized = String(item.value || '').trim().toLowerCase();
+            if (normalized === 'true' || normalized === '1' || normalized === 'on') {
+                return true;
+            }
+
+            if (normalized === 'false' || normalized === '0' || normalized === 'off') {
+                return false;
+            }
+        }
+
+        return null;
+    }
+
+    extractSourceToken(sourceItems, sourceText) {
+        for (let item of asArray(sourceItems)) {
+            let name = String(item.name || '').toLowerCase();
+            if (name.includes('videosourceconfigurationtoken') || name === 'source' || name === 'token' || name.includes('rule')) {
+                let value = String(item.value || '').trim();
+                if (value) {
+                    return value;
+                }
+            }
+        }
+
+        let sourceMatch = String(sourceText || '').match(/\b(?:source|videosourceconfigurationtoken|token)\s*[:=]\s*([A-Za-z0-9_-]+)/i);
+        return sourceMatch ? sourceMatch[1] : '';
+    }
+
+    withSourceAliases(sourceItems, sourceToken) {
+        let aliases = asArray(sourceItems).map((item) => ({ name: item.name || '', value: item.value || '' }));
+        if (!sourceToken) {
+            return aliases;
+        }
+
+        let hasSource = aliases.some((item) => String(item.name || '').toLowerCase() === 'source');
+        if (!hasSource) {
+            aliases.push({ name: 'Source', value: sourceToken });
+        }
+
+        let hasToken = aliases.some((item) => String(item.name || '').toLowerCase() === 'token');
+        if (!hasToken) {
+            aliases.push({ name: 'Token', value: sourceToken });
+        }
+
+        return aliases;
+    }
+
+    dedupeEvents(events) {
+        let seen = new Set();
+        let deduped = [];
+
+        for (let event of events) {
+            let key = `${event.topic}|${event.sourceText}|${event.dataText}|${event.utcTime}`;
+            if (seen.has(key)) {
+                continue;
+            }
+
+            seen.add(key);
+            deduped.push(event);
+        }
+
+        return deduped;
     }
 
     pushRecentEvent(event) {
